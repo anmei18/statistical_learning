@@ -1,0 +1,88 @@
+---
+title: "statistical_learning"
+author: "AnMei Chen"
+date: "12/4/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(glmnet)
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
+
+options(
+  ggplot2.continuous.colour = "viridis" , 
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+
+set.seed(11)
+```
+
+
+## Lasso
+
+Predicting birthweight
+
+```{r}
+bwt_df = 
+  read_csv("data/birthweight.csv") %>% 
+  mutate(
+    babysex = recode(babysex, "1" = "male", "2" = "female"),
+    frace = recode(frace, "1" = "White", "2" = "Black", "3" = "Asian", "4" = "Puerto Rican", "8" = "Other", "9" = "Unknown"),
+    mrace = recode(mrace,"1" = "White", "2" = "Black", "3" = "Asian", "4" = "Puerto Rican", "8" = "Other", "9" = "Unknown")
+  ) %>% 
+  mutate(
+    babysex = factor(babysex),
+    frace = factor(frace),
+    malform = as.logical(malform),
+    mrace = factor(mrace)
+    ) %>% 
+  sample_n(200)
+
+
+```
+
+Let's just do the lasso and move on ...
+
+```{r}
+y = bwt_df %>% pull(bwt)
+
+#[,-1] means to get rid of the first column
+x = model.matrix(bwt ~ ., bwt_df)[,-1]
+```
+
+Let's fit lasso
+
+```{r}
+lambda_grid = 10 ^ seq(3, -2, by = -0.1)
+
+lasso_fit = glmnet(x, y, lambda = lambda_grid)
+
+lasso_cv = cv.glmnet(x, y, lambda = lambda_grid)
+
+lambda_opt = lasso_cv$lambda.min
+```
+
+Can we actually see what we did ... ?
+
+```{r}
+lasso_fit %>% 
+  broom::tidy() %>% 
+  complete(term,lambda, fill = list(estimate = 0)) %>% 
+  filter(term != "(Intercept)" ) %>% 
+  ggplot(aes(x = log(lambda), y = estimate, group = term, color = term)) +
+  geom_path() + 
+  geom_vline(xintercept = log(lambda_opt)) +
+  theme(legend.position = "bottom")
+           
+           
+```
+
